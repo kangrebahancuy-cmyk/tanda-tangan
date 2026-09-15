@@ -1,0 +1,21 @@
+'use client';
+import { useState } from 'react';
+import SignaturePad from './SignaturePad';
+
+export default function SantriForm() {
+  const [data, setData] = useState({ nama: '', tempatLahir: '', tanggalLahir: '', signature: '' });
+  const [errors, setErrors] = useState<Record<string,string>>({}); const [status, setStatus] = useState<'idle'|'loading'|'success'|'error'>('idle');
+  const submit = async (e: React.FormEvent) => { e.preventDefault(); setStatus('loading'); setErrors({}); const next: Record<string,string> = {}; if (data.nama.trim().length < 2) next.nama='Nama wajib diisi.'; if (data.tempatLahir.trim().length < 2) next.tempatLahir='Tempat lahir wajib diisi.'; if (!data.tanggalLahir) next.tanggalLahir='Tanggal lahir wajib diisi.'; if (!data.signature) next.signature='Tanda tangan wajib dibuat.'; if (Object.keys(next).length) { setErrors(next); setStatus('idle'); return; }
+    try { const res = await fetch('/api/santri', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) }); const json=await res.json(); if(!res.ok){ setErrors(json.fields ? Object.fromEntries(Object.entries(json.fields).map(([k,v])=>[k,Array.isArray(v)?String(v[0]):'Data tidak valid.'])) : {form:json.error||'Gagal menyimpan data.'}); setStatus('error'); return; } setStatus('success'); } catch { setErrors({form:'Terjadi kesalahan saat menyimpan data. Silakan coba lagi.'}); setStatus('error'); }
+  };
+  if (status==='success') return <div className="rounded-3xl border border-emerald-100 bg-white p-8 text-center shadow-sm"><div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 text-2xl text-emerald-600">✓</div><h2 className="text-2xl font-bold text-slate-900">Data Berhasil Dikirim</h2><p className="mt-2 text-slate-500">Terima kasih. Data Anda telah berhasil dikirim.</p><p className="mt-6 text-sm text-slate-400">Silakan tutup halaman ini.</p></div>;
+  return <form onSubmit={submit} className="space-y-6 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
+    {errors.form && <div role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{errors.form}</div>}
+    <Field label="Nama Lengkap" value={data.nama} error={errors.nama} onChange={v=>setData({...data,nama:v})} />
+    <Field label="Tempat Lahir" value={data.tempatLahir} error={errors.tempatLahir} onChange={v=>setData({...data,tempatLahir:v})} />
+    <div><label htmlFor="tanggalLahir" className="mb-2 block text-sm font-semibold text-slate-800">Tanggal Lahir</label><input id="tanggalLahir" type="date" value={data.tanggalLahir} onChange={e=>setData({...data,tanggalLahir:e.target.value})} className="min-h-12 w-full rounded-xl border border-slate-200 bg-white px-4 outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-200" />{errors.tanggalLahir&&<p className="mt-1 text-sm text-red-600">{errors.tanggalLahir}</p>}</div>
+    <div><label className="mb-2 block text-sm font-semibold text-slate-800">Tanda Tangan</label><SignaturePad onChange={signature=>setData({...data,signature})}/>{errors.signature&&<p className="mt-2 text-sm text-red-600">{errors.signature}</p>}</div>
+    <button disabled={status==='loading'} className="min-h-12 w-full rounded-xl bg-slate-900 px-5 font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60">{status==='loading'?'Menyimpan...':'Kirim Data'}</button>
+  </form>;
+}
+function Field({label,value,error,onChange}:{label:string,value:string,error?:string,onChange:(v:string)=>void}) { return <div><label className="mb-2 block text-sm font-semibold text-slate-800">{label}</label><input required value={value} onChange={e=>onChange(e.target.value)} className="min-h-12 w-full rounded-xl border border-slate-200 px-4 outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-200" />{error&&<p className="mt-1 text-sm text-red-600">{error}</p>}</div> }
