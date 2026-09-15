@@ -1,4 +1,3 @@
-import { NextResponse } from 'next/server';
-import { createAdminSession, verifyPassword } from '@/lib/auth';
+import { NextResponse } from 'next/server'; import { createAdminSession, verifyPassword } from '@/lib/auth'; import { rateLimit } from '@/lib/rate-limit';
 export const runtime='nodejs';
-export async function POST(req:Request){ try { const {username,password}=await req.json(); if(username!==process.env.ADMIN_USERNAME || !(await verifyPassword(String(password||'')))) return NextResponse.json({error:'Username atau password salah.'},{status:401}); await createAdminSession(); return NextResponse.json({success:true}); } catch { return NextResponse.json({error:'Login gagal.'},{status:500}); } }
+export async function POST(req:Request){try{const ip=req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()||'unknown';const limit=await rateLimit('login',ip,8,15*60*1000);if(!limit.allowed)return NextResponse.json({error:'Terlalu banyak percobaan login. Coba lagi dalam beberapa menit.'},{status:429});const {username,password}=await req.json();if(username!==process.env.ADMIN_USERNAME||!(await verifyPassword(String(password||''))))return NextResponse.json({error:'Username atau password salah.'},{status:401});await createAdminSession();return NextResponse.json({success:true});}catch{return NextResponse.json({error:'Login gagal.'},{status:500});}}
