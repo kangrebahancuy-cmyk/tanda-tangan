@@ -1,0 +1,4 @@
+import { NextResponse } from 'next/server'; import { isAdmin } from '@/lib/auth'; import { getDb } from '@/lib/mongodb';
+export const runtime='nodejs';
+const csv=(v:string)=>`"${v.replace(/"/g,'""')}"`;
+export async function GET(){if(!(await isAdmin()))return NextResponse.json({error:'Unauthorized'},{status:401});const docs=await (await getDb()).collection('santri').find({}, {projection:{nama:1,tempatLahir:1,tanggalLahir:1,createdAt:1}}).sort({createdAt:-1}).toArray();const rows=[['Nama','Tempat Lahir','Tanggal Lahir','Created At'],...docs.map(x=>[x.nama,x.tempatLahir,new Date(x.tanggalLahir).toLocaleDateString('id-ID'),new Date(x.createdAt).toISOString()])];const body='\ufeff'+rows.map(r=>r.map(csv).join(',')).join('\r\n');return new Response(body,{headers:{'Content-Type':'text/csv; charset=utf-8','Content-Disposition':'attachment; filename="data-santri.csv"','Cache-Control':'private, no-store'}});}
