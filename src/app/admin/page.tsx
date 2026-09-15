@@ -1,5 +1,180 @@
-import { redirect } from 'next/navigation'; import { isAdmin } from '@/lib/auth'; import { getDb } from '@/lib/mongodb';
-export const dynamic='force-dynamic';
-type Gender='laki-laki'|'perempuan';
-export default async function Admin({searchParams}:{searchParams:Promise<{q?:string,page?:string,gender?:string}>}){if(!(await isAdmin()))redirect('/admin/login');const sp=await searchParams;const q=(sp.q||'').trim();const gender=sp.gender==='laki-laki'||sp.gender==='perempuan'?sp.gender:'all';const page=Math.max(1,Number(sp.page||1));const limit=20;const db=await getDb();const filter={$and:[...(q?[{nama:{$regex:q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),$options:'i'}}]:[]),...(gender!=='all'?[{gender}]:[])]};const [items,total,today,all,laki,perempuan]=await Promise.all([db.collection('santri').find(filter,{projection:{signature:0}}).sort({createdAt:-1}).skip((page-1)*limit).limit(limit).toArray(),db.collection('santri').countDocuments(filter),db.collection('santri').countDocuments({$and:[{createdAt:{$gte:new Date(new Date().setHours(0,0,0,0))}},...(gender!=='all'?[{gender}]:[])]}),db.collection('santri').countDocuments(),db.collection('santri').countDocuments({gender:'laki-laki'}),db.collection('santri').countDocuments({gender:'perempuan'})]);const pages=Math.max(1,Math.ceil(total/limit));const href=(g:string,p=1)=>`/admin?${new URLSearchParams({...(q?{q}:{}),...(g!=='all'?{gender:g}:{}),...(p>1?{page:String(p)}:{})}).toString()}`;return <main className="min-h-screen px-4 py-6 sm:px-8"><div className="mx-auto max-w-6xl"><header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-bold uppercase tracking-[.2em] text-slate-500">Admin</p><h1 className="mt-1 text-3xl font-bold">Data Santri</h1></div><div className="flex flex-wrap gap-2"><a href="/api/admin/export/csv" className="min-h-11 rounded-xl border px-4 py-2 text-sm font-semibold">Export CSV</a><a href="/api/admin/export/zip" className="min-h-11 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Download Semua</a><form action="/api/admin/logout" method="post"><button className="min-h-11 rounded-xl border px-4 text-sm font-semibold">Keluar</button></form></div></header><div className="mt-7 grid gap-4 sm:grid-cols-3"><Stat label="Total Santri" value={all}/><Stat label="Laki-laki" value={laki}/><Stat label="Perempuan" value={perempuan}/></div><div className="mt-6 grid grid-cols-3 gap-2 rounded-2xl bg-slate-100 p-1"><a href={href('all')} className={`rounded-xl px-3 py-3 text-center text-sm font-bold ${gender==='all'?'bg-white shadow-sm':'text-slate-500'}`}>Semua ({all})</a><a href={href('laki-laki')} className={`rounded-xl px-3 py-3 text-center text-sm font-bold ${gender==='laki-laki'?'bg-white shadow-sm':'text-slate-500'}`}>Laki-laki ({laki})</a><a href={href('perempuan')} className={`rounded-xl px-3 py-3 text-center text-sm font-bold ${gender==='perempuan'?'bg-white shadow-sm':'text-slate-500'}`}>Perempuan ({perempuan})</a></div><form className="mt-4 flex gap-2"><input type="hidden" name="gender" value={gender}/><input name="q" defaultValue={q} placeholder="Cari nama..." className="min-h-12 flex-1 rounded-xl border px-4"/><button className="min-h-12 rounded-xl bg-slate-900 px-5 font-semibold text-white">Cari</button></form><p className="mt-4 text-sm text-slate-500">Menampilkan <span className="font-semibold text-slate-700">{gender==='all'?'semua data':gender==='laki-laki'?'data santri laki-laki':'data santri perempuan'}</span> · {total} data</p><section className="mt-3 overflow-hidden rounded-2xl border bg-white"><div className="hidden overflow-x-auto sm:block"><table className="w-full text-left text-sm"><thead className="border-b bg-slate-50"><tr><th className="p-4">Nama</th><th className="p-4">Jenis Kelamin</th><th className="p-4">Tempat Lahir</th><th className="p-4">Tanggal Lahir</th><th className="p-4">Aksi</th></tr></thead><tbody>{items.map(x=><tr key={x._id.toHexString()} className="border-b last:border-0"><td className="p-4 font-semibold">{x.nama}</td><td className="p-4">{x.gender==='laki-laki'?'Laki-laki':x.gender==='perempuan'?'Perempuan':'Belum diatur'}</td><td className="p-4">{x.tempatLahir}</td><td className="p-4">{new Date(x.tanggalLahir).toLocaleDateString('id-ID')}</td><td className="p-4"><a className="font-semibold underline" href={`/admin/santri/${x._id.toHexString()}`}>Lihat</a></td></tr>)}</tbody></table></div><div className="divide-y sm:hidden">{items.map(x=><a key={x._id.toHexString()} href={`/admin/santri/${x._id.toHexString()}`} className="block p-4"><div className="font-semibold">{x.nama}</div><div className="mt-1 text-sm text-slate-500">{x.gender==='laki-laki'?'Laki-laki':x.gender==='perempuan'?'Perempuan':'Belum diatur'} · {x.tempatLahir} · {new Date(x.tanggalLahir).toLocaleDateString('id-ID')}</div><div className="mt-2 text-sm font-semibold">Lihat detail →</div></a>)}</div>{items.length===0&&<div className="p-10 text-center text-slate-500">Belum ada data untuk kategori ini.</div>}</section><div className="mt-5 flex items-center justify-between text-sm text-slate-500"><span>Menampilkan {items.length} dari {total} · Halaman {page}/{pages}</span><div className="flex gap-2">{page>1&&<a className="rounded-lg border px-3 py-2" href={href(gender,page-1)}>Sebelumnya</a>}{page<pages&&<a className="rounded-lg border px-3 py-2" href={href(gender,page+1)}>Berikutnya</a>}</div></div></div></main>}
-function Stat({label,value}:{label:string,value:number}){return <div className="rounded-2xl border bg-white p-5"><p className="text-sm text-slate-500">{label}</p><p className="mt-1 text-3xl font-bold">{value}</p></div>}
+import { redirect } from 'next/navigation';
+import { isAdmin } from '@/lib/auth';
+import { getDb } from '@/lib/mongodb';
+
+export const dynamic = 'force-dynamic';
+
+type Gender = 'laki-laki' | 'perempuan';
+
+type SearchParams = Promise<{
+  q?: string;
+  page?: string;
+  gender?: string;
+}>;
+
+export default async function Admin({ searchParams }: { searchParams: SearchParams }) {
+  if (!(await isAdmin())) redirect('/admin/login');
+
+  const sp = await searchParams;
+  const q = (sp.q || '').trim();
+  const gender: Gender | 'all' =
+    sp.gender === 'laki-laki' || sp.gender === 'perempuan' ? sp.gender : 'all';
+
+  const parsedPage = Number(sp.page || '1');
+  const page = Number.isFinite(parsedPage) ? Math.max(1, Math.floor(parsedPage)) : 1;
+  const limit = 20;
+
+  const db = await getDb();
+  const filter: Record<string, unknown> = {};
+
+  if (q) {
+    filter.nama = {
+      $regex: q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
+      $options: 'i',
+    };
+  }
+
+  if (gender !== 'all') {
+    filter.gender = gender;
+  }
+
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const todayFilter: Record<string, unknown> = {
+    createdAt: { $gte: todayStart },
+  };
+  if (gender !== 'all') todayFilter.gender = gender;
+
+  const collection = db.collection('santri');
+
+  const [items, total, today, all, laki, perempuan] = await Promise.all([
+    collection
+      .find(filter, { projection: { signature: 0 } })
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .toArray(),
+    collection.countDocuments(filter),
+    collection.countDocuments(todayFilter),
+    collection.countDocuments(),
+    collection.countDocuments({ gender: 'laki-laki' }),
+    collection.countDocuments({ gender: 'perempuan' }),
+  ]);
+
+  const pages = Math.max(1, Math.ceil(total / limit));
+  const currentPage = Math.min(page, pages);
+
+  const href = (g: string, p = 1) => {
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (g !== 'all') params.set('gender', g);
+    if (p > 1) params.set('page', String(p));
+    const query = params.toString();
+    return query ? `/admin?${query}` : '/admin';
+  };
+
+  return (
+    <main className="min-h-screen px-4 py-6 sm:px-8">
+      <div className="mx-auto max-w-6xl">
+        <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-bold uppercase tracking-[.2em] text-slate-500">Admin</p>
+            <h1 className="mt-1 text-3xl font-bold">Data Santri</h1>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <a href="/api/admin/export/csv" className="min-h-11 rounded-xl border px-4 py-2 text-sm font-semibold">Export CSV</a>
+            <a href="/api/admin/export/zip" className="min-h-11 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Download Semua</a>
+            <form action="/api/admin/logout" method="post">
+              <button className="min-h-11 rounded-xl border px-4 text-sm font-semibold">Keluar</button>
+            </form>
+          </div>
+        </header>
+
+        <div className="mt-7 grid gap-4 sm:grid-cols-3">
+          <Stat label="Total Santri" value={all} />
+          <Stat label="Laki-laki" value={laki} />
+          <Stat label="Perempuan" value={perempuan} />
+        </div>
+
+        <div className="mt-6 grid grid-cols-3 gap-2 rounded-2xl bg-slate-100 p-1">
+          <a href={href('all')} className={`rounded-xl px-3 py-3 text-center text-sm font-bold ${gender === 'all' ? 'bg-white shadow-sm' : 'text-slate-500'}`}>
+            Semua ({all})
+          </a>
+          <a href={href('laki-laki')} className={`rounded-xl px-3 py-3 text-center text-sm font-bold ${gender === 'laki-laki' ? 'bg-white shadow-sm' : 'text-slate-500'}`}>
+            Laki-laki ({laki})
+          </a>
+          <a href={href('perempuan')} className={`rounded-xl px-3 py-3 text-center text-sm font-bold ${gender === 'perempuan' ? 'bg-white shadow-sm' : 'text-slate-500'}`}>
+            Perempuan ({perempuan})
+          </a>
+        </div>
+
+        <form className="mt-4 flex gap-2">
+          <input type="hidden" name="gender" value={gender} />
+          <input name="q" defaultValue={q} placeholder="Cari nama..." className="min-h-12 flex-1 rounded-xl border px-4" />
+          <button className="min-h-12 rounded-xl bg-slate-900 px-5 font-semibold text-white">Cari</button>
+        </form>
+
+        <p className="mt-4 text-sm text-slate-500">
+          Menampilkan <span className="font-semibold text-slate-700">{gender === 'all' ? 'semua data' : gender === 'laki-laki' ? 'data santri laki-laki' : 'data santri perempuan'}</span> · {total} data
+        </p>
+
+        <section className="mt-3 overflow-hidden rounded-2xl border bg-white">
+          <div className="hidden overflow-x-auto sm:block">
+            <table className="w-full text-left text-sm">
+              <thead className="border-b bg-slate-50">
+                <tr>
+                  <th className="p-4">Nama</th>
+                  <th className="p-4">Jenis Kelamin</th>
+                  <th className="p-4">Tempat Lahir</th>
+                  <th className="p-4">Tanggal Lahir</th>
+                  <th className="p-4">Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((x) => (
+                  <tr key={x._id.toHexString()} className="border-b last:border-0">
+                    <td className="p-4 font-semibold">{x.nama}</td>
+                    <td className="p-4">{x.gender === 'laki-laki' ? 'Laki-laki' : x.gender === 'perempuan' ? 'Perempuan' : 'Belum diatur'}</td>
+                    <td className="p-4">{x.tempatLahir}</td>
+                    <td className="p-4">{new Date(x.tanggalLahir).toLocaleDateString('id-ID')}</td>
+                    <td className="p-4"><a className="font-semibold underline" href={`/admin/santri/${x._id.toHexString()}`}>Lihat</a></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="divide-y sm:hidden">
+            {items.map((x) => (
+              <a key={x._id.toHexString()} href={`/admin/santri/${x._id.toHexString()}`} className="block p-4">
+                <div className="font-semibold">{x.nama}</div>
+                <div className="mt-1 text-sm text-slate-500">{x.gender === 'laki-laki' ? 'Laki-laki' : x.gender === 'perempuan' ? 'Perempuan' : 'Belum diatur'} · {x.tempatLahir} · {new Date(x.tanggalLahir).toLocaleDateString('id-ID')}</div>
+                <div className="mt-2 text-sm font-semibold">Lihat detail →</div>
+              </a>
+            ))}
+          </div>
+
+          {items.length === 0 && <div className="p-10 text-center text-slate-500">Belum ada data untuk kategori ini.</div>}
+        </section>
+
+        <div className="mt-5 flex items-center justify-between text-sm text-slate-500">
+          <span>Menampilkan {items.length} dari {total} · Halaman {currentPage}/{pages} · Hari ini {today}</span>
+          <div className="flex gap-2">
+            {currentPage > 1 && <a className="rounded-lg border px-3 py-2" href={href(gender, currentPage - 1)}>Sebelumnya</a>}
+            {currentPage < pages && <a className="rounded-lg border px-3 py-2" href={href(gender, currentPage + 1)}>Berikutnya</a>}
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-2xl border bg-white p-5">
+      <p className="text-sm text-slate-500">{label}</p>
+      <p className="mt-1 text-3xl font-bold">{value}</p>
+    </div>
+  );
+}
