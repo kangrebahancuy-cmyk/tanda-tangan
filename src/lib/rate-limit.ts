@@ -1,0 +1,2 @@
+import { getDb } from './mongodb';
+export async function rateLimit(scope:string, identifier:string, max:number, windowMs:number){ const db=await getDb(); const now=Date.now(); const key=`${scope}:${identifier}`; const c=db.collection('rate_limits'); await c.createIndex({expiresAt:1},{expireAfterSeconds:0}); const result=await c.findOneAndUpdate({key,windowStart:{$gt:new Date(now-windowMs)}},{$inc:{count:1}},{upsert:true,returnDocument:'after'}); const count=result?.count??1; return {allowed:count<=max, remaining:Math.max(0,max-count)}; }
