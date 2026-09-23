@@ -8,6 +8,8 @@ import EditSantriForm from './EditSantriForm';
 
 export const dynamic = 'force-dynamic';
 
+type Gender = 'laki-laki' | 'perempuan';
+
 export default async function Detail({ params }: { params: Promise<{ id: string }> }) {
   if (!(await isAdmin())) redirect('/admin/login');
 
@@ -20,6 +22,7 @@ export default async function Detail({ params }: { params: Promise<{ id: string 
   );
   if (!doc) notFound();
 
+  const gender: Gender = doc.gender === 'perempuan' ? 'perempuan' : 'laki-laki';
   const normalizedDate = new Date(doc.tanggalLahir).toISOString().slice(0, 10);
   const signatureUrl = `/api/admin/santri/${doc._id.toHexString()}/signature`;
 
@@ -35,7 +38,7 @@ export default async function Detail({ params }: { params: Promise<{ id: string 
           <dl className="mt-7 grid gap-5 sm:grid-cols-2">
             <div><dt className="text-sm text-slate-500">Tempat Lahir</dt><dd className="mt-1 font-semibold">{doc.tempatLahir}</dd></div>
             <div><dt className="text-sm text-slate-500">Tanggal Lahir</dt><dd className="mt-1 font-semibold">{new Date(doc.tanggalLahir).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</dd></div>
-            <div><dt className="text-sm text-slate-500">Jenis Kelamin</dt><dd className="mt-1 font-semibold">{doc.gender === 'laki-laki' ? 'Laki-laki' : 'Perempuan'}</dd></div>
+            <div><dt className="text-sm text-slate-500">Jenis Kelamin</dt><dd className="mt-1 font-semibold">{gender === 'laki-laki' ? 'Laki-laki' : 'Perempuan'}</dd></div>
           </dl>
 
           <div className="mt-8">
@@ -45,7 +48,7 @@ export default async function Detail({ params }: { params: Promise<{ id: string 
             </div>
           </div>
 
-          <EditSantriForm id={doc._id.toHexString()} initial={{ nama: doc.nama, tempatLahir: doc.tempatLahir, tanggalLahir: normalizedDate, gender: doc.gender }} />
+          <EditSantriForm id={doc._id.toHexString()} initial={{ nama: doc.nama, tempatLahir: doc.tempatLahir, tanggalLahir: normalizedDate, gender }} />
           <DetailActions id={doc._id.toHexString()} />
         </div>
       </div>
