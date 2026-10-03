@@ -19,29 +19,32 @@ const formatDate = (value: Date | string | undefined) => {
   });
 };
 
-export async function GET() {
+export async function GET(req: Request) {
   if (!(await isAdmin())) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const { searchParams } = new URL(req.url);
+  const gender = searchParams.get('gender');
+  const filter: Record<string, unknown> = {};
+
+  if (gender === 'laki-laki' || gender === 'perempuan') {
+    filter.gender = gender;
+  }
+
   const docs = await (await getDb())
     .collection('santri')
-    .find(
-      {},
-      {
-        projection: {
-          nama: 1,
-          tempatLahir: 1,
-          tanggalLahir: 1,
-          createdAt: 1,
-        },
+    .find(filter, {
+      projection: {
+        nama: 1,
+        tempatLahir: 1,
+        tanggalLahir: 1,
+        createdAt: 1,
       },
-    )
+    })
     .sort({ createdAt: -1 })
     .toArray();
 
-  // Gunakan titik koma sebagai pemisah agar otomatis terbaca sebagai kolom
-  // di Microsoft Excel pada pengaturan regional Indonesia.
   const separator = ';';
   const rows = [
     ['Nama', 'Tempat Lahir', 'Tanggal Lahir', 'Created At'],
@@ -61,10 +64,17 @@ export async function GET() {
     '\ufeff' +
     rows.map((row) => row.map(csv).join(separator)).join('\r\n');
 
+  const filename =
+    gender === 'laki-laki'
+      ? 'data-santri-laki-laki.csv'
+      : gender === 'perempuan'
+        ? 'data-santri-perempuan.csv'
+        : 'data-santri-semua.csv';
+
   return new Response(body, {
     headers: {
       'Content-Type': 'text/csv; charset=utf-8',
-      'Content-Disposition': 'attachment; filename="data-santri.csv"',
+      'Content-Disposition': `attachment; filename="${filename}"`,
       'Cache-Control': 'private, no-store',
     },
   });
