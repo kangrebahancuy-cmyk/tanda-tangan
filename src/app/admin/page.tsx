@@ -83,7 +83,7 @@ export default async function Admin({ searchParams }: { searchParams: SearchPara
             <h1 className="mt-1 text-3xl font-bold">Data Santri</h1>
           </div>
           <div className="flex flex-wrap gap-2">
-            <a href="/api/admin/export/csv" className="min-h-11 rounded-xl border px-4 py-2 text-sm font-semibold">Export CSV</a>
+            <a href={gender === 'all' ? '/api/admin/export/csv' : '/api/admin/export/csv?gender=' + gender} className="min-h-11 rounded-xl border px-4 py-2 text-sm font-semibold">Export Excel</a>
             <a href="/api/admin/export/zip" className="min-h-11 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Download Semua</a>
             <form action="/api/admin/logout" method="post">
               <button className="min-h-11 rounded-xl border px-4 text-sm font-semibold">Keluar</button>
