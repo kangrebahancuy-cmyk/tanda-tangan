@@ -18,15 +18,23 @@ function filename(name: string) {
   );
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   if (!(await isAdmin())) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const { searchParams } = new URL(req.url);
+  const gender = searchParams.get('gender');
+  const filter: Record<string, unknown> = {};
+
+  if (gender === 'laki-laki' || gender === 'perempuan') {
+    filter.gender = gender;
   }
 
   const db = await getDb();
   const docs = await db
     .collection('santri')
-    .find({}, { projection: { nama: 1, signature: 1 } })
+    .find(filter, { projection: { nama: 1, signature: 1, gender: 1 } })
     .sort({ createdAt: -1 })
     .toArray();
 
@@ -37,8 +45,13 @@ export async function GET() {
   for (const doc of docs) {
     try {
       const data = await signatureStorage.get(doc.signature.url);
+      const folder = doc.gender === 'laki-laki'
+        ? 'laki-laki'
+        : doc.gender === 'perempuan'
+          ? 'perempuan'
+          : 'belum-diatur';
       archive.append(data, {
-        name: `${filename(doc.nama)}-${doc._id.toHexString().slice(-6)}.png`,
+        name: `${folder}/${filename(doc.nama)}-${doc._id.toHexString().slice(-6)}.png`,
       });
     } catch (error) {
       console.error('zip signature error', doc._id, error);
@@ -60,10 +73,16 @@ export async function GET() {
     },
   });
 
+  const filename = gender === 'laki-laki'
+    ? 'tanda-tangan-laki-laki.zip'
+    : gender === 'perempuan'
+      ? 'tanda-tangan-perempuan.zip'
+      : 'tanda-tangan-semua.zip';
+
   return new Response(stream, {
     headers: {
       'Content-Type': 'application/zip',
-      'Content-Disposition': 'attachment; filename="tanda-tangan-santri.zip"',
+      'Content-Disposition': `attachment; filename="${filename}"`,
       'Cache-Control': 'private, no-store',
     },
   });
