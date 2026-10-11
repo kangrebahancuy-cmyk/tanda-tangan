@@ -60,6 +60,19 @@ export async function GET(req: Request) {
 
   await archive.finalize();
 
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      pass.on('data', (chunk: Buffer | Uint8Array) => {
+        controller.enqueue(new Uint8Array(chunk));
+      });
+      pass.on('end', () => controller.close());
+      pass.on('error', (error) => controller.error(error));
+    },
+    cancel() {
+      pass.destroy();
+    },
+  });
+
   const downloadFilename = gender === 'laki-laki'
     ? 'tanda-tangan-laki-laki.zip'
     : gender === 'perempuan'
