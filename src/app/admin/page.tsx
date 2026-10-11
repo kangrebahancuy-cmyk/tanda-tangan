@@ -84,7 +84,7 @@ export default async function Admin({ searchParams }: { searchParams: SearchPara
           </div>
           <div className="flex flex-wrap gap-2">
             <a href={gender === 'all' ? '/api/admin/export/csv' : '/api/admin/export/csv?gender=' + gender} className="min-h-11 rounded-xl border px-4 py-2 text-sm font-semibold">Export Excel</a>
-            <a href="/api/admin/export/zip" className="min-h-11 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Download Semua</a>
+            <a href={gender === 'all' ? '/api/admin/export/zip' : '/api/admin/export/zip?gender=' + gender} className="min-h-11 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">{gender === 'all' ? 'Download Tanda Tangan' : gender === 'laki-laki' ? 'Download Tanda Tangan Laki-laki' : 'Download Tanda Tangan Perempuan'}</a>
             <form action="/api/admin/logout" method="post">
               <button className="min-h-11 rounded-xl border px-4 text-sm font-semibold">Keluar</button>
             </form>
