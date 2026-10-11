@@ -7,7 +7,7 @@ import { signatureStorage } from '@/lib/storage';
 
 export const runtime = 'nodejs';
 
-function filename(name: string) {
+function sanitizeFilename(name: string) {
   return (
     name
       .normalize('NFKD')
@@ -51,7 +51,7 @@ export async function GET(req: Request) {
           ? 'perempuan'
           : 'belum-diatur';
       archive.append(data, {
-        name: `${folder}/${filename(doc.nama)}-${doc._id.toHexString().slice(-6)}.png`,
+        name: `${folder}/${sanitizeFilename(doc.nama)}-${doc._id.toHexString().slice(-6)}.png`,
       });
     } catch (error) {
       console.error('zip signature error', doc._id, error);
@@ -60,20 +60,7 @@ export async function GET(req: Request) {
 
   await archive.finalize();
 
-  const stream = new ReadableStream<Uint8Array>({
-    start(controller) {
-      pass.on('data', (chunk: Buffer | Uint8Array) => {
-        controller.enqueue(new Uint8Array(chunk));
-      });
-      pass.on('end', () => controller.close());
-      pass.on('error', (error) => controller.error(error));
-    },
-    cancel() {
-      pass.destroy();
-    },
-  });
-
-  const filename = gender === 'laki-laki'
+  const downloadFilename = gender === 'laki-laki'
     ? 'tanda-tangan-laki-laki.zip'
     : gender === 'perempuan'
       ? 'tanda-tangan-perempuan.zip'
@@ -82,7 +69,7 @@ export async function GET(req: Request) {
   return new Response(stream, {
     headers: {
       'Content-Type': 'application/zip',
-      'Content-Disposition': `attachment; filename="${filename}"`,
+      'Content-Disposition': `attachment; filename="${downloadFilename}"`,
       'Cache-Control': 'private, no-store',
     },
   });
